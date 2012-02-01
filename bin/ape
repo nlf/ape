@@ -1,0 +1,6 @@
+#!/usr/bin/env node
+
+var ape = require('../lib/ape');
+
+ape.generate_doc('../lib/ape.js', console.log);
+ape.generate_doc('./main.py', console.log);
