@@ -1,11 +1,16 @@
-//This is a doc line
+This is a doc line
+
+```javascript
 var fs = require('fs'),
     path = require('path');
-/*This is a multi
+```
+This is a multi
   middle line
-Line comment*/
+Line comment
 
-// Main function that passes code on for parsing
+Main function that passes code on for parsing
+
+```javascript
 exports.generate_doc = function (filename, callback) {
     var filetext;
     path.exists(filename, function (exists) {
@@ -18,23 +23,19 @@ exports.generate_doc = function (filename, callback) {
     });
 };
 
-// Return true if the file is recognized
-exports.supported = function (filename, callback) {
-    var lang = languages[path.extname(filename)];
-    if (typeof lang === 'undefined' ) {
-        callback(false);
-    } else {
-        callback(true);
-    }
-}
+```
+Return the language object for the filename
 
-// Return the language object for the filename
+```javascript
 function get_language(filename) {
     var lang = languages[path.extname(filename)];
     return lang;
 };
 
-// This function actually does the parsing
+```
+This function actually does the parsing
+
+```javascript
 function parse_code(filename, code, callback) {
     var parsed_code = [],
         this_line,
@@ -42,8 +43,6 @@ function parse_code(filename, code, callback) {
         in_code,
         lang = get_language(filename);
 
-    if (typeof lang === 'undefined') return;
-    
     function start_code() {
         parsed_code.push('');
         parsed_code.push('```' + lang.name);
@@ -55,7 +54,10 @@ function parse_code(filename, code, callback) {
         in_code = false;
     }
 
-    // Loop through the lines
+```
+Loop through the lines
+
+```javascript
     for (var i = 0, l = code.length; i < l; i++) {
         this_line = code[i];
         if (this_line.match(lang.comment) && !in_comment && !this_line.match(/#\!/)) {
@@ -92,8 +94,13 @@ function write_md(filename, parsed_code, callback) {
     fs.writeFileSync(outfile, parsed_code.join('\n'), 'utf8');
     callback(null, outfile);
 };
-/* testing one line multi-comment */
+```
+testing one line multi-comment 
+
+```javascript
 var languages = {
     '.js': { name: 'javascript', comment: /^\s*\/\/\s?/, start: /^\s*\/\*\s?/, end: /\*\/\s*$/ },
     '.py': { name: 'python', comment: /^\s*#\s?/, start: /^\s*\"\"\"\s?/, end: /\"\"\"\s*$/ }
 };
+
+```

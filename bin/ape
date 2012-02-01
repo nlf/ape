@@ -1,6 +1,60 @@
 #!/usr/bin/env node
+var ape = require('../lib/ape'),
+    fs = require('fs'),
+    path = require('path'),
+    async = require('async'),
+    walk = require('walk');
 
-var ape = require('../lib/ape');
+if (process.argv.length > 2) {
+    var argv = process.argv.slice(2);
+} else {
+    console.log('Usage: ape [file|directory]');
+    sys.exit(1);
+}
 
-ape.generate_doc('../lib/ape.js', console.log);
-ape.generate_doc('./main.py', console.log);
+function process_item(name, callback) {
+    fs.stat(name, function (err, stats) {
+        if (err) {
+            callback(new Error('error opening ' + name));
+        } else {
+            if (stats.isFile()) {
+                ape.supported(name, function (supported) {
+                    if (supported) {
+                        console.log('processing', name);
+                        ape.generate_doc(name, function (err, output) {
+                            callback();
+                        });
+                    } else {
+                        console.log('skipping unsupported file', name);
+                    }
+                });
+            } else if (stats.isDirectory()) {
+                var walker = walk.walk(name);
+                walker.on('file', function (root, fileStats, next) {
+                    var file = path.join(root, fileStats.name);
+                    ape.supported(file, function (supported) {
+                        if (supported) {
+                            console.log('processing', file);
+                            ape.generate_doc(file, function (err, output) {
+                                next();
+                            });
+                        } else {
+                            console.log('skipping unsupported file', file);
+                            next();
+                        }
+                    });
+                });
+                walker.on('end', function () {
+                    callback();
+                });
+            }
+        }
+    });
+}
+
+async.mapSeries(argv, process_item, function (err) {
+    if (err) {
+        console.log(err);
+        sys.exit(1);
+    }
+});
