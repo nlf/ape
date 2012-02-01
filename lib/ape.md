@@ -174,6 +174,7 @@ function write_md(filename, parsed_code, callback) {
 
 Here we define our supported languages. Each language is a dictionary, keyed on the file extension. Inside the dictionary
 we have the the following items:
+
 * 'name': the identifier that we output to the markdown for code blocks
 * 'comment': is a regex that will match a single line comment for the specific language, but does NOT include the text on the line, only the comment
 * 'start': a regular expression to match the beginning of a multi-line commment block. 'start' should only match if it's on the beginning
