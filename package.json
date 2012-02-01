@@ -7,7 +7,7 @@
     "bin": {
         "ape": "./bin/ape"
     },
-    "repository": "git://github.com/ape/ape.git",
+    "repository": "git://github.com/andyet/ape.git",
     "dependencies": {
         "async": "",
         "walk": ""
