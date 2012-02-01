@@ -4,6 +4,9 @@
     "author": "Nathan LaFreniere",
     "version": "0.1.0",
     "main": "./lib/ape.js",
+    "bin": {
+        "ape": "./bin/ape"
+    },
     "repository": "git://github.com/ape/ape.git",
     "dependencies": {
         "async": "",

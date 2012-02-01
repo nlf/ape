@@ -9,7 +9,7 @@ if (process.argv.length > 2) {
     var argv = process.argv.slice(2);
 } else {
     console.log('Usage: ape [file|directory]');
-    sys.exit(1);
+    process.exit(1);
 }
 
 function process_item(name, callback) {
@@ -55,6 +55,6 @@ function process_item(name, callback) {
 async.mapSeries(argv, process_item, function (err) {
     if (err) {
         console.log(err);
-        sys.exit(1);
+        process.exit(1);
     }
 });
