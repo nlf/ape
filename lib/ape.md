@@ -107,8 +107,11 @@ Loop through the lines
 ```javascript
     for (var i = 0, l = code.length; i < l; i++) {
         this_line = code[i];
-        // If the line matches the single-line comment regex, and is not a shebang (ie: #!/bin/bash), we strip out the comment delimiter and append it to the output
-        if (this_line.match(lang.comment) && !in_comment && !this_line.match(/#\!/)) {
+```
+If the line matches the single-line comment regex, and is not a shebang (ie: #!/bin/bash), we strip out the comment delimiter and append it to the output
+
+```javascript
+        if (this_line.match(lang.comment) && !in_comment && !this_line.match(/^#\!/)) {
             if (in_code) end_code(); 
             parsed_code.push(this_line.replace(lang.comment, ''));
 ```
