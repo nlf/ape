@@ -1,5 +1,5 @@
-
 ## API docs? Nope, ape docs!
+
 ---
 ape is a command line tool to generate documentation from your comments.
 It parses your source code files, and strips markdown formatted comments out,
@@ -9,32 +9,28 @@ It wasn't written to be fancy, but rather to have a simple, automated way of kee
 
 To use:
 
-    git clone https://github.com/andyet/ape.git
-    cd ape
-    npm install
-    bin/ape [list of files or directories]
+    sudo npm install -g ape
+    ape [list of files or directories]
 
-I'll be making the package npm installable soon
-
-
+Require dependencies
 
 ```javascript
 var fs = require('fs'),
-    path = require('path');
+    path = require('path'),
+    gfm = require('ghm'),
+    hljs = require('hljs'),
+    jade = require('jade');
 
 ```
+
 This is the exported function that does the actual parsing and documentation generation
 
 ```javascript
-exports.generate_doc = function (filename, callback) {
+exports.generate_doc = function (filename, output, callback) {
     path.exists(filename, function (exists) {
         if (exists) {
-```
-Convert the source file to a line array
-
-```javascript
-            var code = fs.readFileSync(filename).toString().split('\n')
-            parse_code(filename, code, callback);
+            var code = fs.readFileSync(filename).toString().split('\n');
+            parse_code(filename, code, output, callback);
         } else {
             callback(new Error('file does not exist ' + filename));
         }
@@ -46,7 +42,6 @@ Convert the source file to a line array
 This function is a helper for frontends, to make it simpler to determine if a file can be processed by ape.
 It returns a callback with a single boolean parameter indicating if the file is supported
 
-
 ```javascript
 exports.supported = function (filename, callback) {
     var lang = languages[path.extname(filename)];
@@ -55,124 +50,112 @@ exports.supported = function (filename, callback) {
     } else {
         callback(true);
     }
-}
+};
 
 ```
+
 A simple helper function to return the dictionary of comment regexs, determined by the file extension
 
 ```javascript
 function get_language(filename) {
     var lang = languages[path.extname(filename)];
     return lang;
-};
+}
 
 ```
 
 This is the main function to parse the line array of source code, and return a new line array
 containing the formatted text
 
-
 ```javascript
-function parse_code(filename, code, callback) {
+function parse_code(filename, code, output, callback) {
     var parsed_code = [],
         this_line,
         in_comment,
         in_code,
-        lang = get_language(filename);
+        lang = get_language(filename),
+        commentblock = [],
+        codeblock = [];
 
     if (typeof lang === 'undefined') return;
     
-```
-This function outputs a blank line, and then a github-flavored-markdown beginner for a code block
-
-```javascript
-    function start_code() {
-        parsed_code.push('');
-        parsed_code.push('```' + lang.name);
-        in_code = true;
-    }
-
-```
-Here we end the gfm code block
-
-```javascript
-    function end_code() {
-        parsed_code.push('```');
+    function pushblock() {
+        parsed_code.push({ code: codeblock.join('\n'), comment: commentblock.join('\n') });
+        codeblock = [];
+        commentblock = [];
         in_code = false;
     }
 
-```
-Loop through the lines
-
-```javascript
     for (var i = 0, l = code.length; i < l; i++) {
         this_line = code[i];
-```
-If the line matches the single-line comment regex, and is not a shebang (ie: #!/bin/bash), we strip out the comment delimiter and append it to the output
-
-```javascript
         if (this_line.match(lang.comment) && !in_comment && !this_line.match(/^#\!/)) {
-            if (in_code) end_code(); 
-            parsed_code.push(this_line.replace(lang.comment, ''));
-```
-If the line matches the first line of a multi-line comment, and we're not already in a comment
-
-```javascript
+            if (in_code) pushblock();
+            commentblock.push(this_line.replace(lang.comment, ''))
         } else if (this_line.match(lang.start) && !in_comment) {
-            if (in_code) end_code(); 
+            if (in_code) pushblock(); 
             in_comment = true;
-```
-Strip out the comment delimiter, append to parsed output
-
-```javascript
             this_line = this_line.replace(lang.start, '');
             if (this_line.match(lang.end)) {
                 this_line = this_line.replace(lang.end, '');
                 in_comment = false;
             } 
-            parsed_code.push(this_line);
-```
-End a multi-line comment
-
-```javascript
+            if (this_line.trim() !== '') commentblock.push(this_line);
         } else if (this_line.match(lang.end) && in_comment) {
-            parsed_code.push(this_line.replace(lang.end, ''));
+            this_line = this_line.replace(lang.end, '');
+            if (this_line.trim() !== '') commentblock.push(this_line);
             in_comment = false;
+        } else if (this_line.trim() === '' && !in_comment && !in_code) {
+            if (!in_comment && !in_code) pushblock();
         } else {
-```
-If we're in a comment, then we push the line as-is so as not to break markdown
-
-```javascript
             if (in_comment) {
-                parsed_code.push(this_line);
+                commentblock.push(this_line);
             } else {
-```
-If we're not in a comment, and the line isn't blank, then we're in a code block. If we're not already in one, start one, if we are just append the code.
-
-```javascript
-                if (!in_code && this_line.trim() !== '') start_code(); 
-                parsed_code.push(this_line);
+                if (!in_code && this_line.trim() !== '') in_code = true; 
+                codeblock.push(this_line);
             }
         }
     }
-```
-Make sure we end a code block if we're in one
 
-```javascript
-    if (in_code) end_code();
-    write_md(filename, parsed_code, callback);
-};
+    pushblock();
+
+    if (output === 'md') {
+        write_md(filename, parsed_code, callback);
+    } else if (output === 'html') {
+        write_html(filename, parsed_code, callback);
+    }
+}
 
 ```
-This function writes the parsed output to an actual file, matching the original source's filename but changing the extension to .md
+
+This function writes the parsed output to a markdown file, matching the original source's filename but changing the extension to .md
 
 ```javascript
 function write_md(filename, parsed_code, callback) {
-    var outfile;
+    var outfile,
+        outcode = '';
     outfile = filename.replace(path.extname(filename), '.md');
-    fs.writeFileSync(outfile, parsed_code.join('\n'), 'utf8');
+    for (var i = 0, l = parsed_code.length; i < l; i++) {
+        if (parsed_code[i].comment !== '') outcode += parsed_code[i].comment + '\n\n';
+        if (parsed_code[i].code !== '') outcode += '```' + get_language(filename).name + '\n' + parsed_code[i].code + '\n```\n\n';
+    }
+    fs.writeFileSync(outfile, outcode, 'utf8');
     callback(null, outfile);
-};
+}
+
+```
+
+This function writes parsed output to html
+
+```javascript
+function write_html(filename, parsed_code, callback) {
+    var outfile,
+        template;
+    outfile = filename.replace(path.extname(filename), '.html');
+    template = fs.readFileSync(__dirname + '/template.jade', 'utf-8');
+    var fn = jade.compile(template);
+    fs.writeFileSync(outfile, fn({ gfm: gfm, data: parsed_code, hljs: hljs, lang: get_language(filename).name }));
+    callback(null, outfile);
+}
 
 ```
 
@@ -185,11 +168,13 @@ we have the the following items:
 of a line
 * 'end': the partner regex to 'start' matching the end of a multi-line comment only if the match is at the end of a line.
 
-
 ```javascript
 var languages = {
     '.js': { name: 'javascript', comment: /^\s*\/\/\s?/, start: /^\s*\/\*\s?/, end: /\*\/\s*$/ },
-    '.py': { name: 'python', comment: /^\s*#\s?/, start: /^\s*\"\"\"\s?/, end: /\"\"\"\s*$/ }
+    '.py': { name: 'python', comment: /^\s*#\s?/, start: /^\s*\"\"\"\s?/, end: /\"\"\"\s*$/ },
+    '.rb': { name: 'ruby', comment: /^\s*#\s?/, start: /^\s*\=begin\s?/, end: /\=end\s*$/ },
+    '.lua': { name: 'lua', comment: /^\s*--\s?/, start: /^\s*--\[\[\s?/, end: /--\]\]\s*$/ }
 };
 
 ```
+

@@ -10,6 +10,10 @@
     "repository": "git://github.com/andyet/ape.git",
     "dependencies": {
         "async": "",
-        "walk": ""
+        "walk": "",
+        "ghm": "",
+        "jade": "",
+        "hljs": "",
+        "optimist": ""
     }
 }

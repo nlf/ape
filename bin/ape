@@ -3,12 +3,15 @@ var ape = require('../lib/ape'),
     fs = require('fs'),
     path = require('path'),
     async = require('async'),
-    walk = require('walk');
+    walk = require('walk'),
+    argv = require('optimist')
+        .usage('Usage: $0 -f [md|html] [file|directory]..')
+        .demand(['f'])
+        .argv;
 
-if (process.argv.length > 2) {
-    var argv = process.argv.slice(2);
-} else {
-    console.log('Usage: ape [file|directory]');
+var outformat = argv.f;
+if (argv._.length === 0) {
+    console.log('Usage: ape -f [md|html] [file|directory]..');
     process.exit(1);
 }
 
@@ -21,7 +24,7 @@ function process_item(name, callback) {
                 ape.supported(name, function (supported) {
                     if (supported) {
                         console.log('processing', name);
-                        ape.generate_doc(name, function (err, output) {
+                        ape.generate_doc(name, outformat, function (err, output) {
                             callback();
                         });
                     } else {
@@ -35,7 +38,7 @@ function process_item(name, callback) {
                     ape.supported(file, function (supported) {
                         if (supported) {
                             console.log('processing', file);
-                            ape.generate_doc(file, function (err, output) {
+                            ape.generate_doc(file, outformat, function (err, output) {
                                 next();
                             });
                         } else {
@@ -52,7 +55,7 @@ function process_item(name, callback) {
     });
 }
 
-async.mapSeries(argv, process_item, function (err) {
+async.mapSeries(argv._, process_item, function (err) {
     if (err) {
         console.log(err);
         process.exit(1);
