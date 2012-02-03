@@ -1,0 +1,12 @@
+!!! 5
+head
+  link(rel='stylesheet', href='./template.css')
+body
+  #docs
+    - each block in data
+      .block
+        .comment
+          != gfm.parse(block.comment)
+        .code
+          - if (block.code !== '')
+            != '<pre><code>' + hljs(block.code, lang).value + '</code></pre>'
