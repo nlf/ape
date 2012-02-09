@@ -9,7 +9,8 @@ Optionally, ape can also output to html with a built-in jade template, or one yo
 To install:
 
     sudo npm install -g ape
- 
+
+And how to use: 
 
     Usage: node ./bin/ape [input file|directory list]
 
