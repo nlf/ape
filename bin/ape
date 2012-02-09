@@ -5,15 +5,28 @@ var ape = require('../lib/ape'),
     async = require('async'),
     walk = require('walk'),
     argv = require('optimist')
-        .usage('Usage: $0 -f [md|html] [file|directory]..')
-        .demand(['f'])
+        .usage('Usage: $0 [input file|directory list]')
+        .boolean(['md', 'html'])
+        .string(['output', 'template'])
+        .describe({ md: 'Output as markdown', html: 'Output as HTML', template: 'Template for HTML output', output: 'Output directory' })
+        .alias({ template: 't', input: 'i', output: 'o' })
+        .default({ md: true, html: false })
+        .check(function (args) { 
+            if (args.html) args.md = false;
+            if (args._.length === 0) throw 'Input not specified';
+            if (args.o && !path.existsSync(args.o)) throw 'Output directory does not exist';
+            if (args.t) {
+                if (path.extname(args.tg) !== '.jade') throw 'Template file must be jade';
+                if (!path.existsSync(args.t)) throw 'Template file does not exist';
+            }
+        })
         .argv;
 
-var outformat = argv.f;
-if (argv._.length === 0) {
-    console.log('Usage: ape -f [md|html] [file|directory]..');
-    process.exit(1);
-}
+var outPath = argv.o,
+    template = argv.t,
+    outFmt;
+
+argv.md ? outFmt = 'md' : outFmt = 'html';
 
 function process_item(name, callback) {
     fs.stat(name, function (err, stats) {
@@ -24,7 +37,7 @@ function process_item(name, callback) {
                 ape.supported(name, function (supported) {
                     if (supported) {
                         console.log('processing', name);
-                        ape.generate_doc(name, outformat, function (err, output) {
+                        ape.generate_doc(name, outFmt, outPath, template, function (err, output) {
                             callback();
                         });
                     } else {
@@ -38,7 +51,7 @@ function process_item(name, callback) {
                     ape.supported(file, function (supported) {
                         if (supported) {
                             console.log('processing', file);
-                            ape.generate_doc(file, outformat, function (err, output) {
+                            ape.generate_doc(file, outFmt, outPath, template, function (err, output) {
                                 next();
                             });
                         } else {
