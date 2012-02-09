@@ -22,3 +22,5 @@ And how to use:
       --html          Output as HTML            [boolean]  [default: false]
       --template, -t  Template for HTML output  [string]
       --output, -o    Output directory          [string]
+
+Currently python, javascript, ruby, and lua are supported. Feel free to submit a pull request for additional languages!
