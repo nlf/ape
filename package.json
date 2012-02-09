@@ -2,7 +2,7 @@
     "name": "ape",
     "description": "API documentation generator with github-flavored-markdown output",
     "author": "Nathan LaFreniere",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "main": "./lib/ape.js",
     "bin": {
         "ape": "./bin/ape"
