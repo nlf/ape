@@ -2,12 +2,12 @@
     "name": "ape",
     "description": "API documentation generator with github-flavored-markdown output",
     "author": "Nathan LaFreniere",
-    "version": "0.3.4",
+    "version": "0.3.5",
     "main": "./lib/ape.js",
     "bin": {
         "ape": "./bin/ape"
     },
-    "repository": "git://github.com/andyet/ape.git",
+    "repository": "git://github.com/nathan-lafreniere/ape.git",
     "dependencies": {
         "async": "",
         "walk": "",
