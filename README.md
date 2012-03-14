@@ -23,4 +23,4 @@ And how to use:
       --template, -t  Template for HTML output  [string]
       --output, -o    Output directory          [string]
 
-Currently python, javascript, ruby, and lua are supported. Feel free to submit a pull request for additional languages!
+Currently python, javascript, ruby, lua, coffeescript, C, C++, Perl, PHP, C#, ObjC, SQL, Bash, CSS, and ActionScript are supported. Feel free to submit a pull request for additional languages!
