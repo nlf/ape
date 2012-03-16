@@ -23,22 +23,6 @@ var fs = require('fs'),
 
 ```
 
-This is the exported function that does the actual parsing and documentation generation
-
-```javascript
-exports.generate_doc = function (filename, outputFormat, outputPath, template, callback) {
-    path.exists(filename, function (exists) {
-        if (exists) {
-            var code = fs.readFileSync(filename).toString().split('\n');
-            parse_code(filename, code, outputFormat, outputPath, template, callback);
-        } else {
-            callback(new Error('file does not exist ' + filename));
-        }
-    });
-};
-
-```
-
 This function is a helper for frontends, to make it simpler to determine if a file can be processed by ape.
 It returns a callback with a single boolean parameter indicating if the file is supported
 
@@ -57,7 +41,7 @@ exports.supported = function (filename, callback) {
 A simple helper function to return the dictionary of comment regexs, determined by the file extension
 
 ```javascript
-function get_language(filename) {
+exports.get_language = function (filename) {
     var lang = languages[path.extname(filename)];
     return lang;
 }
@@ -68,16 +52,18 @@ This is the main function to parse the line array of source code, and return a n
 containing the formatted text
 
 ```javascript
-function parse_code(filename, code, outputFormat, outputPath, template, callback) {
+function parse_code(code, lang, outputFormat, template, callback) {
     var parsed_code = [],
         this_line,
         in_comment,
         in_code,
-        lang = get_language(filename),
+        spaces,
         commentblock = [],
-        codeblock = [];
+        codeblock = [],
+        tempblock = [];
 
-    if (typeof lang === 'undefined') return;
+    if (code && typeof code !== 'string') code = code.toString().split("\n");
+    if (typeof lang === 'undefined' || !code) return;
     
     function pushblock() {
         parsed_code.push({ code: codeblock.join('\n'), comment: commentblock.join('\n') });
@@ -92,8 +78,20 @@ function parse_code(filename, code, outputFormat, outputPath, template, callback
             if (in_code) pushblock();
             commentblock.push(this_line.replace(lang.comment, ''))
         } else if (this_line.match(lang.start) && !in_comment) {
+            if (lang.name === 'python' && in_code) {
+                while (codeblock[codeblock.length - 1].trim() !== '') {
+                    tempblock.push(codeblock.pop());
+                }
+            }
             if (in_code) pushblock(); 
+            if (lang.name === 'python') {
+                for (var ti = 0, tl = tempblock.length; ti < tl; ti++) {
+                    codeblock.push(tempblock.pop());
+                }
+            }
             in_comment = true;
+            spaces = this_line.match(/^\s+/);
+            if (spaces) spaces = spaces[0].length;
             this_line = this_line.replace(lang.start, '');
             if (this_line.match(lang.end)) {
                 this_line = this_line.replace(lang.end, '');
@@ -105,9 +103,10 @@ function parse_code(filename, code, outputFormat, outputPath, template, callback
             if (this_line.trim() !== '') commentblock.push(this_line);
             in_comment = false;
         } else if (this_line.trim() === '' && !in_comment && !in_code) {
-            if (!in_comment && !in_code) pushblock();
+            pushblock();
         } else {
             if (in_comment) {
+                if (lang.name === 'python') this_line = this_line.substring(spaces);
                 commentblock.push(this_line);
             } else {
                 if (!in_code && this_line.trim() !== '') in_code = true; 
@@ -119,34 +118,34 @@ function parse_code(filename, code, outputFormat, outputPath, template, callback
     pushblock();
 
     if (outputFormat === 'md') {
-        write_md(filename, parsed_code, outputPath, callback);
+        generate_md(parsed_code, lang, callback);
     } else if (outputFormat === 'html') {
-        write_html(filename, parsed_code, outputPath, template, callback);
+        generate_html(parsed_code, lang, template, callback);
     }
 }
+
+```
+
+This is the exported method
+
+```javascript
+exports.generate_doc = parse_code;
 
 ```
 
 This function writes the parsed output to a markdown file, matching the original source's filename but changing the extension to .md
 
 ```javascript
-function write_md(filename, parsed_code, outputPath, callback) {
+function generate_md(parsed_code, language, callback) {
     var outfile,
         outcode = '';
     
-    if (typeof outputPath === 'undefined') {
-        outfile = filename.replace(path.extname(filename), '.md');
-    } else {
-        outfile = path.join(outputPath, path.basename(filename).replace(path.extname(filename), '.md'));
-    }
-
     for (var i = 0, l = parsed_code.length; i < l; i++) {
         if (parsed_code[i].comment !== '') outcode += parsed_code[i].comment + '\n\n';
-        if (parsed_code[i].code !== '') outcode += '```' + get_language(filename).name + '\n' + parsed_code[i].code + '\n```\n\n';
+        if (parsed_code[i].code !== '') outcode += '```' + language.name + '\n' + parsed_code[i].code + '\n```\n\n';
     }
 
-    fs.writeFileSync(outfile, outcode, 'utf8');
-    callback(null, outfile);
+    callback(null, outcode);
 }
 
 ```
@@ -154,16 +153,10 @@ function write_md(filename, parsed_code, outputPath, callback) {
 This function writes parsed output to html
 
 ```javascript
-function write_html(filename, parsed_code, outputPath, template, callback) {
+function generate_html(parsed_code, language, template, callback) {
     var outfile,
         templatePath,
         template;
-
-    if (typeof outputPath === 'undefined') {
-        outfile = filename.replace(path.extname(filename), '.html');
-    } else {
-        outfile = path.join(outputPath, path.basename(filename).replace(path.extname(filename), '.html'));
-    }
 
     if (typeof template === 'undefined') {
         templatePath = path.join(__dirname, 'template.jade');
@@ -173,8 +166,8 @@ function write_html(filename, parsed_code, outputPath, template, callback) {
 
     template = fs.readFileSync(__dirname + '/template.jade', 'utf-8');
     var fn = jade.compile(template);
-    fs.writeFileSync(outfile, fn({ gfm: gfm, data: parsed_code, hljs: hljs, lang: get_language(filename).name }));
-    callback(null, outfile);
+
+    callback(null, fn({ gfm: gfm, data: parsed_code, hljs: hljs, lang: language.name }));
 }
 
 ```
@@ -189,11 +182,28 @@ of a line
 * 'end': the partner regex to 'start' matching the end of a multi-line comment only if the match is at the end of a line.
 
 ```javascript
+var C_LINE_COMMENT = /^\s*\/\/\s?/, 
+    C_BLOCK_COMMENT_START = /^\s*\/\*\s?/, 
+    C_BLOCK_COMMENT_END = /\*\/\s*$/, 
+    HASH_LINE_COMMENT = /^\s*#\s?/,
+    NEVER_MATCH = /a\bc/;
 var languages = {
-    '.js': { name: 'javascript', comment: /^\s*\/\/\s?/, start: /^\s*\/\*\s?/, end: /\*\/\s*$/ },
-    '.py': { name: 'python', comment: /^\s*#\s?/, start: /^\s*\"\"\"\s?/, end: /\"\"\"\s*$/ },
-    '.rb': { name: 'ruby', comment: /^\s*#\s?/, start: /^\s*\=begin\s?/, end: /\=end\s*$/ },
-    '.lua': { name: 'lua', comment: /^\s*--\s?/, start: /^\s*--\[\[\s?/, end: /--\]\]\s*$/ }
+    '.js': { name: 'javascript', comment: C_LINE_COMMENT, start: C_BLOCK_COMMENT_START, end: C_BLOCK_COMMENT_END },
+    '.py': { name: 'python', comment: HASH_LINE_COMMENT, start: /^\s*\"\"\"\s?/, end: /\"\"\"\s*$/ },
+    '.rb': { name: 'ruby', comment: HASH_LINE_COMMENT, start: /^\s*\=begin\s?/, end: /\=end\s*$/ },
+    '.lua': { name: 'lua', comment: /^\s*--\s?/, start: /^\s*--\[\[\s?/, end: /--\]\]\s*$/ },
+    '.coffee': { name: 'coffeescript', comment: /^\s*#(?!##)\s?/, start: /^\s*###\s?/, end: /###\s*$/ },
+    '.php': { name: 'php', comment: /^\s*(?:#|\/\/\s?)/, start: C_BLOCK_COMMENT_START, end: C_BLOCK_COMMENT_END },
+    '.c': { name: null, comment: C_LINE_COMMENT, start: C_BLOCK_COMMENT_START, end: C_BLOCK_COMMENT_END },
+    '.h': { name: null, comment: C_LINE_COMMENT, start: C_BLOCK_COMMENT_START, end: C_BLOCK_COMMENT_END },
+    '.pl': { name: 'perl', comment: HASH_LINE_COMMENT, start: NEVER_MATCH, end: NEVER_MATCH },
+    '.cpp': { name: 'cpp', comment: C_LINE_COMMENT, start: C_BLOCK_COMMENT_START, end: C_BLOCK_COMMENT_END },
+    '.cs': { name: 'cs', comment: C_LINE_COMMENT, start: C_BLOCK_COMMENT_START, end: C_BLOCK_COMMENT_END },
+    '.m': { name: 'objectivec', comment: C_LINE_COMMENT, start: C_BLOCK_COMMENT_START, end: C_BLOCK_COMMENT_END },
+    '.sql': { name: 'sql', comment: /^\s*--\s?/, start: C_BLOCK_COMMENT_START, end: C_BLOCK_COMMENT_END },
+    '.sh': { name: 'bash', comment: HASH_LINE_COMMENT, start: NEVER_MATCH, end: NEVER_MATCH },
+    '.css': { name: 'css', comment: NEVER_MATCH, start: C_BLOCK_COMMENT_START, end: C_BLOCK_COMMENT_END },
+    '.as': { name: 'actionscript', comment: C_LINE_COMMENT, start: C_BLOCK_COMMENT_START, end: C_BLOCK_COMMENT_END }
 };
 
 ```
