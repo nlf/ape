@@ -37,8 +37,14 @@ function process_item(name, callback) {
                 ape.supported(name, function (supported) {
                     if (supported) {
                         console.log('processing', name);
-                        ape.generate_doc(name, outFmt, outPath, template, function (err, output) {
-                            callback();
+                        fs.readFile(name, function (err, file_contents) {
+                            var lang = ape.get_language(name);
+                            ape.generate_doc(file_contents, lang, outFmt, template, function (err, output) {
+                                fs.writeFile(get_output_path(outPath, name, outFmt), output, function (err) {
+                                    if (err) console.log(err);
+                                    callback();
+                                });
+                            });
                         });
                     } else {
                         console.log('skipping unsupported file', name);
@@ -51,8 +57,14 @@ function process_item(name, callback) {
                     ape.supported(file, function (supported) {
                         if (supported) {
                             console.log('processing', file);
-                            ape.generate_doc(file, outFmt, outPath, template, function (err, output) {
-                                next();
+                            fs.readFile(file, function (err, file_contents) {
+                                var lang = ape.get_language(file);
+                                ape.generate_doc(file_contents, lang, outFmt, template, function (err, output) {
+                                    fs.writeFile(get_output_path(outPath, file, outFmt), output, function (err) {
+                                        if (err) console.log(err);
+                                        next();
+                                    });
+                                });
                             });
                         } else {
                             console.log('skipping unsupported file', file);
@@ -66,6 +78,15 @@ function process_item(name, callback) {
             }
         }
     });
+}
+
+function get_output_path(dirname, filename, format) {
+    if (typeof dirname === 'undefined') {
+        outfile = filename.replace(path.extname(filename), '.'+format);
+    } else {
+        outfile = path.join(dirname, path.basename(filename).replace(path.extname(filename), '.'+format));
+    }
+    return outfile;
 }
 
 async.mapSeries(argv._, process_item, function (err) {
