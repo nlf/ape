@@ -38,8 +38,9 @@ function process_item(name, callback) {
                     if (supported) {
                         console.log('processing', name);
                         fs.readFile(name, function (err, file_contents) {
-                            var lang = ape.get_language(name);
-                            ape.generate_doc(file_contents, lang, outFmt, template, function (err, output) {
+                            var lang = ape.get_language(name),
+                                code = (file_contents||"").toString();
+                            ape.generate_doc(code, lang, outFmt, template, function (err, output) {
                                 fs.writeFile(get_output_path(outPath, name, outFmt), output, function (err) {
                                     if (err) console.log(err);
                                     callback();
@@ -58,8 +59,9 @@ function process_item(name, callback) {
                         if (supported) {
                             console.log('processing', file);
                             fs.readFile(file, function (err, file_contents) {
-                                var lang = ape.get_language(file);
-                                ape.generate_doc(file_contents, lang, outFmt, template, function (err, output) {
+                                var lang = ape.get_language(file),
+                                    code = (file_contents||"").toString();
+                                ape.generate_doc(code, lang, outFmt, template, function (err, output) {
                                     fs.writeFile(get_output_path(outPath, file, outFmt), output, function (err) {
                                         if (err) console.log(err);
                                         next();
