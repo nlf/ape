@@ -14,10 +14,10 @@ var ape = require('../lib/ape'),
         .check(function (args) { 
             if (args.html) args.md = false;
             if (args._.length === 0) throw 'Input not specified';
-            if (args.o && !path.existsSync(args.o)) throw 'Output directory does not exist';
+            if (args.o && !fs.existsSync(args.o)) throw 'Output directory does not exist';
             if (args.t) {
                 if (path.extname(args.tg) !== '.jade') throw 'Template file must be jade';
-                if (!path.existsSync(args.t)) throw 'Template file does not exist';
+                if (!fs.existsSync(args.t)) throw 'Template file does not exist';
             }
         })
         .argv;
