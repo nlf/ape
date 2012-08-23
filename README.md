@@ -1,3 +1,4 @@
+[![build status](https://secure.travis-ci.org/nathan-lafreniere/ape.png)](http://travis-ci.org/nathan-lafreniere/ape)
 ape
 ===
 
